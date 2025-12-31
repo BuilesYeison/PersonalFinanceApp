@@ -2,24 +2,16 @@
 
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
-  import {
-    CircleDollarSign,
-    Sun,
-    Moon,
-    ArrowLeft,
-    FolderSearch,
-  } from "lucide-svelte";
+  import { CircleDollarSign, ArrowLeft, FolderSearch } from "lucide-svelte";
   import { open } from "@tauri-apps/plugin-dialog";
-  import { onMount } from "svelte";
+  import { AppErrors } from "../domain/errors.enum";
+  import { toaster } from "../lib/toaster";
 
   let view = $state("welcome"); //welcome, create or open
 
   // --- Estados del Formulario ---
   let projectName = $state("");
   let projectPath = $state("");
-
-  // Estado para rastrear si el modo oscuro está activo
-  let isDark = $state(false);
 
   async function selectFolder() {
     // Abre el diálogo nativo del Sistema Operativo
@@ -31,51 +23,45 @@
     if (selected) projectPath = selected as string;
   }
 
-  // Al montar el componente, verificamos si el HTML ya tiene la clase 'dark'
-  onMount(() => {
-    isDark = document.documentElement.classList.contains("dark");
-  });
-
   async function handleCreate(event: Event) {
     console.log("Creando:", { projectName, projectPath });
     event.preventDefault();
-    const result = await invoke("init_workspace", {
-      basePath: projectPath,
-      name: projectName,
-    });
+    try {
+      const result = await invoke("init_workspace", {
+        basePath: projectPath,
+        name: projectName,
+      });
 
-    console.log(result);
+      toaster.success({
+        title: "Bien",
+        description: result,
+      });
+    } catch (error: any) {
+      console.error(error);
+      if (error?.type == AppErrors.WorkspaceExists) {
+        toaster.error({
+          title: "Error",
+          description: `La carpeta financiera '${error.message}' ya existe`,
+        });
+      } else if (error?.type == AppErrors.ConfigError) {
+        toaster.error({
+          title: "Error",
+          description: `Error al crear archivos de configuración, por favor comuniquese con un desarrollador`,
+        });
+      } else {
+        toaster.error({
+          title: "Error",
+          description: `Ocurrió un error no controlado, por favor comuniquese con un desarrollador.`,
+        });
+      }
+    }
   }
 
   function handleOpen() {
     console.log("Abriendo:", { projectName, projectPath });
     // Aquí iría tu comando de Rust para crear archivos/carpetas
   }
-
-  function toggleDarkMode() {
-    isDark = !isDark;
-    if (isDark) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  }
 </script>
-
-<div class="fixed top-4 right-4 z-50">
-  <button
-    type="button"
-    class="btn-icon preset-filled-surface-500 shadow-xl"
-    onclick={toggleDarkMode}
-    title="Cambiar modo"
-  >
-    {#if isDark}
-      <Sun size={20} />
-    {:else}
-      <Moon size={20} />
-    {/if}
-  </button>
-</div>
 
 <main
   class="flex flex-col items-center justify-center min-h-screen w-full p-4 text-center"

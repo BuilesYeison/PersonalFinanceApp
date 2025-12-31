@@ -1,96 +1,60 @@
+use crate::domain::config_models::*;
+use crate::domain::error::AppError;
+use serde::Serialize;
 use std::fs;
-use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-pub fn init(base_path: String, name: String) -> Result<(), std::io::Error> {
+pub fn init(base_path: String, name: String) -> Result<(), AppError> {
     // 1. Construir ruta del workspace
     let workspace_path = Path::new(&base_path).join(&name);
 
     // 2. Validar que no exista
     if workspace_path.exists() {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::AlreadyExists,
-            "El workspace ya existe",
-        ));
+        return Err(AppError::WorkspaceExists(name));
     }
 
-    // 3. Crear carpetas principales
-    fs::create_dir_all(&workspace_path)?;
-    fs::create_dir(workspace_path.join(".finance"))?;
-    fs::create_dir(workspace_path.join("records"))?;
-    fs::create_dir(workspace_path.join("attachments"))?;
+    if let Err(e) = create_structure(&workspace_path) {
+        // ROLLBACK: Si algo falló, intentamos borrar la carpeta principal
+        let _ = fs::remove_dir_all(&workspace_path);
+        return Err(e);
+    }
 
-    // 4. Crear archivos de configuración
-    create_file(workspace_path.join(".finance/version.json"), VERSION_JSON)?;
+    Ok(())
+}
 
-    create_file(workspace_path.join(".finance/app.json"), APP_JSON)?;
+fn create_structure(root: &PathBuf) -> Result<(), AppError> {
+    fs::create_dir_all(root)?;
+    // Carpetas
+    let dirs = [".finance", "records", "attachments"];
+    for dir in dirs {
+        fs::create_dir(root.join(dir))?;
+    }
+    let config_dir = root.join(".finance");
 
-    create_file(
-        workspace_path.join(".finance/categories.json"),
-        CATEGORIES_JSON,
+    // Guardar archivos usando los nuevos modelos
+    save_json(config_dir.join("version.json"), &VersionConfig::default())?;
+    save_json(config_dir.join("app.json"), &AppConfig::default())?;
+    save_json(
+        config_dir.join("categories.json"),
+        &CategoriesConfig::default(),
     )?;
+    save_json(config_dir.join("accounts.json"), &AccountsConfig::default())?;
 
-    create_file(workspace_path.join(".finance/accounts.json"), ACCOUNTS_JSON)?;
-
-    create_file(workspace_path.join(".finance/budgets.json"), "{}")?;
-
-    create_file(workspace_path.join(".finance/tags.json"), "[]")?;
+    // Archivos adicionales vacíos
+    save_json(config_dir.join("budgets.json"), &serde_json::json!({}))?;
+    save_json(config_dir.join("tags.json"), &serde_json::json!([]))?;
 
     Ok(())
 }
 
 // -------- helpers --------
 
-fn create_file(path: std::path::PathBuf, content: &str) -> Result<(), std::io::Error> {
-    let mut file = fs::File::create(path)?;
-    file.write_all(content.as_bytes())?;
+fn save_json<T: Serialize>(path: PathBuf, data: &T) -> Result<(), AppError> {
+    let contents = serde_json::to_string_pretty(data)
+        .map_err(|e| AppError::ConfigError(format!("Error serializando: {}", e)))?;
+
+    fs::write(&path, contents)
+        .map_err(|e| AppError::ConfigError(format!("Error escribiendo en {:?}: {}", path, e)))?;
+
     Ok(())
 }
-
-// -------- templates --------
-
-const VERSION_JSON: &str = r#"
-{
-  "schema_version": "1.0.0",
-  "created_at": 0
-}
-"#;
-
-const APP_JSON: &str = r#"
-{
-  "name": "Carpeta Financiera",
-  "currency": "COP",
-  "language": "es"
-}
-"#;
-
-const CATEGORIES_JSON: &str = r#"
-{
-  "expenses": [
-    "Comida",
-    "Transporte",
-    "Salud",
-    "Educación",
-    "Automóvil",
-    "Vivienda",
-    "Deportes",
-    "Entretenimiento",
-    "Mascotas",
-    "Regalos",
-    "Ropa"
-  ],
-  "income": [
-    "Salario",
-    "Depósitos",
-    "Ahorros"
-  ]
-}
-"#;
-
-const ACCOUNTS_JSON: &str = r#"
-[
-  { "name": "Efectivo", "type": "cash" },
-  { "name": "Cuenta Débito", "type": "debit" },
-  { "name": "Tarjeta Crédito", "type": "credit" }
-]
-"#;

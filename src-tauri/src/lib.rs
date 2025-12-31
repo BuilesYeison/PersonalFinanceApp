@@ -1,5 +1,7 @@
 mod commands;
 mod fs;
+mod domain;
+mod helpers;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
