@@ -1,8 +1,8 @@
 use crate::domain::config_models::*;
 use crate::domain::error::AppError;
-use serde::Serialize;
 use std::fs;
 use std::path::{Path, PathBuf};
+use crate::helpers::json_helpers::save_json;
 
 pub fn init(base_path: String, name: String) -> Result<(), AppError> {
     // 1. Construir ruta del workspace
@@ -43,18 +43,6 @@ fn create_structure(root: &PathBuf) -> Result<(), AppError> {
     // Archivos adicionales vacíos
     save_json(config_dir.join("budgets.json"), &serde_json::json!({}))?;
     save_json(config_dir.join("tags.json"), &serde_json::json!([]))?;
-
-    Ok(())
-}
-
-// -------- helpers --------
-
-fn save_json<T: Serialize>(path: PathBuf, data: &T) -> Result<(), AppError> {
-    let contents = serde_json::to_string_pretty(data)
-        .map_err(|e| AppError::ConfigError(format!("Error serializando: {}", e)))?;
-
-    fs::write(&path, contents)
-        .map_err(|e| AppError::ConfigError(format!("Error escribiendo en {:?}: {}", path, e)))?;
 
     Ok(())
 }
