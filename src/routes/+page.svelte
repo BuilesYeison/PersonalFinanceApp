@@ -6,6 +6,7 @@
   import { open } from "@tauri-apps/plugin-dialog";
   import { AppErrors } from "../domain/errors.enum";
   import { toaster } from "../lib/toaster";
+  import { event } from "@tauri-apps/api";
 
   let view = $state("welcome"); //welcome, create or open
 
@@ -24,7 +25,6 @@
   }
 
   async function handleCreate(event: Event) {
-    console.log("Creando:", { projectName, projectPath });
     event.preventDefault();
     try {
       const result = await invoke("init_workspace", {
@@ -57,9 +57,33 @@
     }
   }
 
-  function handleOpen() {
+  async function handleOpen(event: Event) {
     console.log("Abriendo:", { projectName, projectPath });
-    // Aquí iría tu comando de Rust para crear archivos/carpetas
+    event.preventDefault();
+
+    try {
+      const result = await invoke("open_workspace", {
+        fullPath: projectPath,
+      });
+
+      toaster.success({
+        title: "Bien",
+        description: result,
+      });
+    } catch (error: any) {
+      console.error(error);
+      if (error?.type == AppErrors.ConfigError) {
+        toaster.error({
+          title: "Error",
+          description: `Error al crear archivos de configuración, por favor comuniquese con un desarrollador`,
+        });
+      } else {
+        toaster.error({
+          title: "Error",
+          description: `Ocurrió un error no controlado, por favor comuniquese con un desarrollador.`,
+        });
+      }
+    }
   }
 </script>
 

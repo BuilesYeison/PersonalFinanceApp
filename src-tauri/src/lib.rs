@@ -1,16 +1,24 @@
 mod commands;
-mod fs;
 mod domain;
+mod fs;
 mod helpers;
+
+struct AppState {
+    // Usamos un Mutex porque la DB se comparte entre hilos
+    db: std::sync::Mutex<Option<rusqlite::Connection>>,
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .manage(AppState {
+            db: std::sync::Mutex::new(None),
+        })
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
-            commands::workspace::init_workspace
+            commands::workspace::init_workspace,commands::workspace::open_workspace
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

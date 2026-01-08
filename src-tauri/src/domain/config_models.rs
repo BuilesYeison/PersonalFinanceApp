@@ -1,11 +1,11 @@
-use crate::{commands::workspace, helpers::datetime_helpers::timestamp_now};
+use crate::helpers::datetime_helpers::timestamp_now;
 use serde::{Deserialize, Serialize};
 
 // --- Version ---
 #[derive(Serialize, Deserialize, Debug)]
 pub struct VersionConfig {
     pub schema_version: u32,
-    pub created_at: u64,
+    pub created_at: i64,
     pub app_version: String,
 }
 
@@ -26,8 +26,8 @@ pub struct AppConfig {
     pub language: String,
     pub theme: String,
     pub week_start: String,
-    pub created_at: u64,
-    pub updated_at: u64,
+    pub created_at: i64,
+    pub updated_at: i64,
 }
 
 impl Default for AppConfig {
@@ -54,7 +54,7 @@ pub struct CategoryItem {
     pub color: String,
     pub created_by_user: bool,
     pub is_active: bool,
-    pub created_at: u64,
+    pub created_at: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -130,7 +130,7 @@ pub struct AccountItem {
     pub initial_balance: f64,
     pub credit_limit: Option<f64>, // Puede ser null
     pub is_active: bool,
-    pub created_at: u64,
+    pub created_at: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -161,4 +161,19 @@ impl Default for AccountsConfig {
 pub struct LastSessionCacheConfig {
     pub last_workspace_path: String,
     pub last_workspace_name: String,
+}
+
+// -- Transaction/record --
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RecordItem {
+    pub id: String,
+    pub r#type: String,
+    pub amount: f64,
+    pub currency: String,
+    pub timestamp: i64,
+    pub category_id: Option<String>,
+    pub account_id: String,
+    pub to_account_id: Option<String>,
+    pub description: Option<String>,
+    pub metadata: serde_json::Value,
 }
