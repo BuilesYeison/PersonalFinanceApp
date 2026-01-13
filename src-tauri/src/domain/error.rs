@@ -12,6 +12,9 @@ pub enum AppError {
 
     #[error("No se pudo crear el archivo de configuración: {0}")]
     ConfigError(String),
+
+    #[error("Error al hacer una operación con la base de datos")]
+    DatabaseError(String),
 }
 
 impl From<std::io::Error> for AppError {

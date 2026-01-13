@@ -1,16 +1,12 @@
 use crate::domain::config_models::LastSessionCacheConfig;
 use crate::domain::error::AppError;
+use crate::dto::local_paths_dto::LocalPaths;
 use crate::helpers::json_helpers::save_json;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tauri::AppHandle;
 use tauri::Manager; // Para acceder a app_data_dir
 
-pub struct LocalPaths {
-    pub cache_dir: PathBuf,
-    pub logs_dir: PathBuf,
-    pub temp_dir: PathBuf,
-}
 
 /// Obtiene y crea la estructura local para un workspace específico
 pub fn prepare_local_storage(

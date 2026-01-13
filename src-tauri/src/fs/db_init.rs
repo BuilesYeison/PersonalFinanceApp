@@ -1,5 +1,4 @@
 use rusqlite::{Connection, Result};
-use std::path::Path;
 
 pub fn init_sqlite(conn: &mut Connection) -> Result<()> {
     // Activamos llaves foráneas

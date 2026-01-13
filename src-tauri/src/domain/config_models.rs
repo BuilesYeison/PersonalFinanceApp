@@ -169,11 +169,11 @@ pub struct RecordItem {
     pub id: String,
     pub r#type: String,
     pub amount: f64,
-    pub currency: String,
+    pub currency: Option<String>,
     pub timestamp: i64,
     pub category_id: Option<String>,
     pub account_id: String,
     pub to_account_id: Option<String>,
     pub description: Option<String>,
-    pub metadata: serde_json::Value,
+    pub metadata: Option<serde_json::Value>,
 }
