@@ -4,9 +4,9 @@
   import { invoke } from "@tauri-apps/api/core";
   import { CircleDollarSign, ArrowLeft, FolderSearch } from "lucide-svelte";
   import { open } from "@tauri-apps/plugin-dialog";
-  import { AppErrors } from "../domain/errors.enum";
+  import { AppErrors } from "../domain/enums/errors.enum";
   import { toaster } from "../lib/toaster";
-  import { event } from "@tauri-apps/api";
+  import { goto } from "$app/navigation";
 
   let view = $state("welcome"); //welcome, create or open
 
@@ -36,6 +36,7 @@
         title: "Bien",
         description: result,
       });
+      goto("/app/home");
     } catch (error: any) {
       console.error(error);
       if (error?.type == AppErrors.WorkspaceExists) {
@@ -70,6 +71,7 @@
         title: "Bien",
         description: result,
       });
+      goto("/app/home");
     } catch (error: any) {
       console.error(error);
       if (error?.type == AppErrors.ConfigError) {

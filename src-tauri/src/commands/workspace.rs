@@ -1,8 +1,12 @@
+use crate::domain::config_models::{AppConfig, LastSessionCacheConfig};
 use crate::domain::error::AppError;
+use crate::dto::workspace_context_dto::WorkspaceContext;
 use crate::fs::{db_indexer, db_init, local_storage, workspace_init};
+use crate::helpers::json_helpers::load_json;
 use rusqlite::Connection;
 use tauri::AppHandle;
 use std::path::Path;
+use tauri::Manager;
 
 #[tauri::command]
 pub async fn init_workspace(
@@ -68,4 +72,27 @@ pub async fn open_workspace(app: AppHandle, full_path: String) -> Result<String,
     db_indexer::index_full_workspace(path, &mut conn)?;
 
     Ok(format!("Workspace '{}' abierto e indexado", workspace_name))
+}
+
+#[tauri::command]
+pub async fn get_workspace_context(app: tauri::AppHandle) -> Result<WorkspaceContext, AppError> {
+    // 1. Leer la última sesión para saber qué carpeta abrir
+    let app_data = app.path().app_data_dir().unwrap();
+    let session_path = app_data.join("last_session.json");
+    
+    // Aquí leerías el archivo (usando tus helpers)
+    let session: LastSessionCacheConfig = load_json(&session_path)?;
+    
+    // 2. Leer el app.json del workspace para la moneda y configuración
+    let config_path = std::path::Path::new(&session.last_workspace_path)
+        .join(".finance")
+        .join("app.json");
+    let config: AppConfig = load_json(&config_path)?;
+
+    Ok(WorkspaceContext {
+        name: session.last_workspace_name,
+        path: session.last_workspace_path,
+        currency: config.currency,
+        theme: config.theme,
+    })
 }

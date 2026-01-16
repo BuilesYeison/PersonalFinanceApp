@@ -22,6 +22,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::workspace::init_workspace,
             commands::workspace::open_workspace,
+            commands::workspace::get_workspace_context,
             commands::home::get_overall_stats,
         ])
         .run(tauri::generate_context!())

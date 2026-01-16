@@ -3,7 +3,7 @@ use crate::domain::error::AppError;
 use crate::dto::local_paths_dto::LocalPaths;
 use crate::helpers::json_helpers::save_json;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use tauri::AppHandle;
 use tauri::Manager; // Para acceder a app_data_dir
 
@@ -14,7 +14,6 @@ pub fn prepare_local_storage(
     base_path: String,
     workspace_name: String,
 ) -> Result<LocalPaths, AppError> {
-    let workspace_path = Path::new(&base_path).join(&workspace_name);
     // 1. Obtener la ruta base de la App (ej: AppData/Roaming/MyFinApp)
     let app_data:PathBuf = app.path().app_data_dir().map_err(|_| {
         AppError::IoError("No se pudo encontrar el directorio de datos de la app".into())
@@ -39,7 +38,7 @@ pub fn prepare_local_storage(
     save_json(
         session_file,
         &LastSessionCacheConfig {
-            last_workspace_path: workspace_path.to_string_lossy().into(),
+            last_workspace_path: base_path,
             last_workspace_name: workspace_name,
         },
     )?;
