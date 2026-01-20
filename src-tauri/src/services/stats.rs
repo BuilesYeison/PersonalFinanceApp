@@ -20,12 +20,20 @@ pub struct CategoryPercentage {
 }
 
 pub fn calculate_overall_stats(conn: &mut Connection) -> Result<DashboardStats, AppError> {
+    // 1. Obtener la suma de todos los balances iniciales
+    let initial_balances_sum: f64 = conn.query_row(
+        "SELECT SUM(initial_balance) FROM accounts",
+        [],
+        |row| row.get(0)
+    ).unwrap_or(0.0);
+
+    // 2. Obtener la suma de ingresos y gastos
     let mut stmt = conn
         .prepare(
             "SELECT 
-            SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as income,
-            SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as expense
-         FROM records",
+                SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as income,
+                SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as expense
+             FROM records",
         )
         .map_err(|e| AppError::DatabaseError(e.to_string()))?;
 
@@ -33,10 +41,12 @@ pub fn calculate_overall_stats(conn: &mut Connection) -> Result<DashboardStats, 
         .query_row([], |row| {
             let income: f64 = row.get(0).unwrap_or(0.0);
             let expense: f64 = row.get(1).unwrap_or(0.0);
+            
+            // 3. El balance real es: Saldo Inicial + Ingresos - Gastos
             Ok(DashboardStats {
                 total_income: income,
                 total_expense: expense,
-                total_balance: income - expense,
+                total_balance: initial_balances_sum + income - expense,
             })
         })
         .map_err(|e| AppError::DatabaseError(e.to_string()))?;

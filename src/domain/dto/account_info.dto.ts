@@ -1,4 +1,5 @@
 export type AccountInfoDto = {
+  id: string;
   name: string;
   balance: number;
   account_type: string | null | undefined;

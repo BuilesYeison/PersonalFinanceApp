@@ -7,9 +7,11 @@
   import type { DashboardOverallStatsDto } from "../../../domain/dto/dashboard_overall_stats.dto";
   import { onMount } from "svelte";
   import { useCurrencyFormatter } from "$lib/utils/formatter.svelte";
-  import { XIcon } from "lucide-svelte";
+  import { XIcon, TrashIcon, SquarePenIcon } from "lucide-svelte";
   import { Dialog, Portal } from "@skeletonlabs/skeleton-svelte";
   import type { AccountInfoDto } from "../../../domain/dto/account_info.dto";
+  import { workspace } from "$lib/state/workspace.svelte";
+  import { handleCommandError } from "$lib/utils/error.handler";
 
   const formatter = useCurrencyFormatter();
 
@@ -22,101 +24,95 @@
   let accounts: AccountInfoDto[] = $state([]);
 
   let isDialogOpen = $state(false);
-  let newAccount = $state({
+  let newAccount: AccountInfoDto = $state({
+    id: "",
     name: "",
-    type: "cash",
     balance: 0,
+    account_type: null,
+    currency: workspace.currency,
+    initial_balance: null,
+    credit_limit: null,
   });
 
   onMount(async () => {
-    dashboardOverallStats = await getDashboardOverallStats();
-    accounts = await getAccounts();
+    await getDashboardOverallStats();
+    await getAccounts();
   });
 
-  async function getAccounts(): Promise<AccountInfoDto[]> {
+  async function getAccounts(): Promise<void> {
     try {
-      const result: AccountInfoDto[] = await invoke("get_accounts", {
-      });
+      const result: AccountInfoDto[] = await invoke("get_accounts", {});
 
       if (!result) {
         throw Error("Couldn't get accounts");
       }
-      return result;
+      accounts = result;
     } catch (error: any) {
-      console.error(error);
-      if (error?.type == AppErrors.DatabaseError) {
-        toaster.error({
-          title: "Error",
-          description: `Ha ocurrido un error obteniendo la información de la base de datos`,
-        });
-      } else if (error?.type == AppErrors.ConfigError) {
-        toaster.error({
-          title: "Error",
-          description: `Error al crear archivos de configuración, por favor comuniquese con un desarrollador`,
-        });
-      } else if (error?.type == AppErrors.IoError) {
-        toaster.error({
-          title: "Error",
-          description: `Error al gestionar archivos`,
-        });
-      } else {
-        toaster.error({
-          title: "Error",
-          description: `Ocurrió un error no controlado, por favor comuniquese con un desarrollador.`,
-        });
-      }
-      return [] as AccountInfoDto[];
+      handleCommandError(error)
     }
   }
 
-  async function getDashboardOverallStats(): Promise<DashboardOverallStatsDto> {
+  async function getDashboardOverallStats(): Promise<void> {
     try {
       const result: DashboardOverallStatsDto = await invoke(
         "get_overall_stats",
-        {
-        }
+        {}
       );
 
       if (!result) {
         throw Error("Couldn't get overall stats");
       }
-      return result;
-    } catch (error: any) {
-      console.error(error);
-      if (error?.type == AppErrors.DatabaseError) {
-        toaster.error({
-          title: "Error",
-          description: `Ha ocurrido un error obteniendo la información de la base de datos`,
-        });
-      } else if (error?.type == AppErrors.ConfigError) {
-        toaster.error({
-          title: "Error",
-          description: `Error al crear archivos de configuración, por favor comuniquese con un desarrollador`,
-        });
-      } else if (error?.type == AppErrors.IoError) {
-        toaster.error({
-          title: "Error",
-          description: `Error al gestionar archivos`,
-        });
-      } else {
-        toaster.error({
-          title: "Error",
-          description: `Ocurrió un error no controlado, por favor comuniquese con un desarrollador.`,
-        });
-      }
-      return {} as DashboardOverallStatsDto;
+      dashboardOverallStats = result;
+    } catch (error: any) {    
+      handleCommandError(error)
     }
   }
 
   async function handleCreateAccount() {
-    // TODO: Implementar la creación de la cuenta en el backend
-    console.log("Crear cuenta:", newAccount);
-    isDialogOpen = false;
-    newAccount = {
-      name: "",
-      type: "cash",
-      balance: 0,
-    };
+    try {
+      newAccount.balance = newAccount.initial_balance ?? 0;
+      await invoke("create_account", { newAccount });
+      accounts.push(newAccount);
+      isDialogOpen = false;
+      newAccount = {
+        id: "",
+        name: "",
+        balance: 0,
+        account_type: null,
+        currency: workspace.currency,
+        initial_balance: null,
+        credit_limit: null,
+      };
+
+      await getDashboardOverallStats();
+      toaster.success({
+        title: "Exito",
+        description: "Cuenta creada exitosamente",
+      });
+    } catch (error: any) {
+      handleCommandError(error)
+    }
+  }
+
+  async function handleDeleteAccount(accountId: string) {
+    try {
+      let result = await invoke("delete_account", { accountId });
+      if (result) {
+        await Promise.all([getAccounts(), getDashboardOverallStats()]);
+        toaster.success({
+          title: "Exito",
+          description: "Cuenta eliminada exitosamente",
+        });
+      } else {
+        toaster.error({
+          title: "Error",
+          description:
+            "No se pudo eliminar la cuenta porque tiene registros asociados.",
+        });
+      }
+    } catch (error: any) {
+      handleCommandError(error)
+    }
   }
 </script>
 
@@ -151,11 +147,96 @@
     <h4 class="">Cuentas:</h4>
     <div class="border-1 border-dashed w-full grid grid-cols-4 gap-3 p-2">
       {#each accounts as account}
-        <div class="card p-4 preset-filled-success-500">
+        <div class="card p-4 preset-filled-success-500 relative group">
           <h5>{account.name}</h5>
           <h5 class="font-semibold w-max">
             {formatter.format(account.balance)}
           </h5>
+          <Dialog>
+            <Dialog.Trigger
+              class="btn absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity"
+              ><TrashIcon size={17} /></Dialog.Trigger
+            >
+            <Portal>
+              <Dialog.Backdrop
+                class="fixed inset-0 z-50 bg-surface-50-950/50"
+              />
+              <Dialog.Positioner
+                class="fixed inset-0 z-50 flex justify-center items-center p-4"
+              >
+                <Dialog.Content
+                  class="card bg-surface-100-900 w-full max-w-xl p-4 space-y-4 shadow-xl"
+                >
+                  <header class="flex justify-between items-center">
+                    <Dialog.Title class="text-lg font-bold"
+                      >¿Estás seguro que deseas eliminar esta cuenta?</Dialog.Title
+                    >
+                    <Dialog.CloseTrigger class="btn-icon hover:preset-tonal">
+                      <XIcon class="size-4" />
+                    </Dialog.CloseTrigger>
+                  </header>
+                  <div>
+                    Solo se eliminará si no tiene movimientos registrados, de lo
+                    contrario solo se desactivará la cuenta.
+                  </div>
+                  <footer class="flex justify-end gap-2">
+                    <Dialog.CloseTrigger class="btn preset-tonal"
+                      >Cancelar</Dialog.CloseTrigger
+                    >
+                    <Dialog.CloseTrigger
+                      ><button
+                        type="button"
+                        class="btn preset-tonal-error"
+                        onclick={() => handleDeleteAccount(account.id)}
+                        >Eliminar</button
+                      ></Dialog.CloseTrigger
+                    >
+                  </footer>
+                </Dialog.Content>
+              </Dialog.Positioner>
+            </Portal>
+          </Dialog>
+          <Dialog>
+            <Dialog.Trigger
+              class="btn absolute top-0 right-7 opacity-0 group-hover:opacity-100 transition-opacity"
+              ><SquarePenIcon size={17} /></Dialog.Trigger
+            >
+            <Portal>
+              <Dialog.Backdrop
+                class="fixed inset-0 z-50 bg-surface-50-950/50"
+              />
+              <Dialog.Positioner
+                class="fixed inset-0 z-50 flex justify-center items-center p-4"
+              >
+                <Dialog.Content
+                  class="card bg-surface-100-900 w-full max-w-xl p-4 space-y-4 shadow-xl"
+                >
+                  <header class="flex justify-between items-center">
+                    <Dialog.Title class="text-lg font-bold"
+                      >Editar cuenta</Dialog.Title
+                    >
+                    <Dialog.CloseTrigger class="btn-icon hover:preset-tonal">
+                      <XIcon class="size-4" />
+                    </Dialog.CloseTrigger>
+                  </header>
+                  <div>
+                    Solo se eliminará si no tiene movimientos registrados, de lo
+                    contrario solo se desactivará la cuenta.
+                  </div>
+                  <footer class="flex justify-end gap-2">
+                    <Dialog.CloseTrigger class="btn preset-tonal"
+                      >Cancelar</Dialog.CloseTrigger
+                    >
+                    <Dialog.CloseTrigger
+                      ><button type="button" class="btn preset-filled"
+                        >Guardar</button
+                      ></Dialog.CloseTrigger
+                    >
+                  </footer>
+                </Dialog.Content>
+              </Dialog.Positioner>
+            </Portal>
+          </Dialog>
         </div>
       {/each}
       <Dialog>
@@ -191,7 +272,7 @@
 
                 <label class="label">
                   <span>Tipo de cuenta</span>
-                  <select class="select" bind:value={newAccount.type}>
+                  <select class="select" bind:value={newAccount.account_type}>
                     <option value="cash">Efectivo</option>
                     <option value="debit">Débito</option>
                     <option value="credit">Crédito</option>
@@ -204,9 +285,20 @@
                     class="input"
                     type="number"
                     placeholder="0.00"
-                    bind:value={newAccount.balance}
+                    bind:value={newAccount.initial_balance}
                   />
                 </label>
+                {#if newAccount.account_type === "credit"}
+                  <label class="label">
+                    <span>Límite de crédito</span>
+                    <input
+                      class="input"
+                      type="number"
+                      placeholder="0.00"
+                      bind:value={newAccount.credit_limit}
+                    />
+                  </label>
+                {/if}
               </div>
               <footer class="flex justify-end gap-2">
                 <Dialog.CloseTrigger class="btn preset-tonal"
