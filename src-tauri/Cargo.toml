@@ -26,4 +26,5 @@ tauri-plugin-fs = "2"
 tauri-plugin-dialog = "2"
 thiserror = "2.0.17"
 rusqlite = { version = "0.38.0", features = ["bundled"] }
+uuid = { version = "1.19.0", features = ["v4"] }
 

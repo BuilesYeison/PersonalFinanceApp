@@ -1,25 +1,38 @@
-use crate::services::stats;
+use crate::dto::account_info_dto::AccountInfoDto;
+use crate::services::{stats,accounts};
 use crate::{domain::error::AppError, services::stats::DashboardStats};
-use rusqlite::Connection;
-use std::path::PathBuf;
-use tauri::AppHandle;
-use tauri::Manager;
+use crate::AppState;
 
 #[tauri::command]
 pub async fn get_overall_stats(
-    app: AppHandle,
-    workspace_name: String,
+    state: tauri::State<'_, AppState>,
 ) -> Result<DashboardStats, AppError> {
-    let app_data: PathBuf = app.path().app_data_dir().map_err(|_| {
-        AppError::IoError("No se pudo encontrar el directorio de datos de la app".into())
-    })?;
-    let base = app_data.join("workspaces").join(workspace_name.clone());
+    // 1. Bloqueamos el Mutex para obtener el Guard
+    let mut conn_guard = state.db.lock().unwrap();
 
-    let db_path = base.join("cache").join("cache.sqlite");
-    let mut conn = Connection::open(db_path).map_err(|e| AppError::IoError(e.to_string()))?;
+    // 2. Usamos .as_mut() para obtener una referencia mutable a la conexión
+    // El error principal en tu código era intentar desestructurar con &mut conn directamente
+    let conn = conn_guard.as_mut().ok_or_else(|| {
+        AppError::DatabaseError("No hay una conexión a la base de datos activa".into())
+    })?;
 
     let overall_stats =
-        stats::calculate_overall_stats(&mut conn).map_err(|e| AppError::DatabaseError(e.to_string()))?;
+        stats::calculate_overall_stats(conn).map_err(|e| AppError::DatabaseError(e.to_string()))?;
 
     Ok(overall_stats)
+}
+
+#[tauri::command]
+pub async fn get_accounts(state: tauri::State<'_, AppState>,) -> Result<Vec<AccountInfoDto>, AppError> {
+    // 1. Bloqueamos el Mutex para obtener el Guard
+    let mut conn_guard = state.db.lock().unwrap();
+
+    // 2. Usamos .as_mut() para obtener una referencia mutable a la conexión
+    // El error principal en tu código era intentar desestructurar con &mut conn directamente
+    let conn = conn_guard.as_mut().ok_or_else(|| {
+        AppError::DatabaseError("No hay una conexión a la base de datos activa".into())
+    })?;
+    let accounts = accounts::get_accounts_with_balance(conn).map_err(|e| AppError::DatabaseError(e.to_string()))?;
+
+    Ok(accounts)
 }

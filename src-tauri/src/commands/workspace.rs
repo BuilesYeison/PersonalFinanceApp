@@ -3,18 +3,21 @@ use crate::domain::error::AppError;
 use crate::dto::workspace_context_dto::WorkspaceContext;
 use crate::fs::{db_indexer, db_init, local_storage, workspace_init};
 use crate::helpers::json_helpers::load_json;
+use crate::AppState;
 use rusqlite::Connection;
+use std::path::{Path, PathBuf};
 use tauri::AppHandle;
-use std::path::Path;
 use tauri::Manager;
 
 #[tauri::command]
 pub async fn init_workspace(
     app: AppHandle,
+    state: tauri::State<'_, AppState>,
     base_path: String,
     name: String,
 ) -> Result<String, AppError> {
     // 1. Crear el Workspace sincronizable (los JSON)
+    let workspace_path = Path::new(&base_path).join(&name);
     workspace_init::init(base_path.clone(), name.clone())?;
 
     // 2. Crear el almacenamiento local (SQLite, Logs)
@@ -24,16 +27,40 @@ pub async fn init_workspace(
 
     let db_path = local_paths.cache_dir.join("cache.sqlite");
     let mut conn = Connection::open(db_path).map_err(|e| AppError::IoError(e.to_string()))?;
+
     db_init::init_sqlite(&mut conn).map_err(|e| AppError::IoError(format!("Error DB: {}", e)))?;
 
     // 4. Indexar
-    db_indexer::index_full_workspace(&std::path::Path::new(&base_path).join(&name), &mut conn)?;
+    db_indexer::index_full_workspace(&workspace_path, &mut conn)?;
+
+    // 1. Guardar la conexión DB en el estado
+    let mut db_guard = state.db.lock().unwrap();
+    *db_guard = Some(conn);
+
+    // 2. Guardar la ruta del workspace en el estado
+    let mut path_guard = state.workspace_path.lock().unwrap();
+    *path_guard = Some(workspace_path);
+
+    let app_data: PathBuf = app.path().app_data_dir().map_err(|_| {
+        AppError::IoError("No se pudo encontrar el directorio de datos de la app".into())
+    })?;
+
+    // 2. Construir MyFinApp/workspaces/NombreDelWorkspace/
+    let app_data_base_path = app_data.join("workspaces").join(name.clone());
+
+    // 2. Guardar la ruta del appdata workspace en el estado
+    let mut app_data_path_guard = state.workspace_app_data_dir.lock().unwrap();
+    *app_data_path_guard = Some(app_data_base_path);
 
     Ok("Workspace e índice local creados correctamente".into())
 }
 
 #[tauri::command]
-pub async fn open_workspace(app: AppHandle, full_path: String) -> Result<String, AppError> {
+pub async fn open_workspace(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
+    full_path: String,
+) -> Result<String, AppError> {
     let path = Path::new(&full_path);
 
     if (!path.exists() || !path.is_dir()) {
@@ -71,23 +98,65 @@ pub async fn open_workspace(app: AppHandle, full_path: String) -> Result<String,
     // Ejecutamos el indexador que lee todos los JSON y llena el SQLite
     db_indexer::index_full_workspace(path, &mut conn)?;
 
+    // 1. Guardar la conexión DB en el estado
+    let mut db_guard = state.db.lock().unwrap();
+    *db_guard = Some(conn);
+
+    // 2. Guardar la ruta del workspace en el estado
+    let mut path_guard = state.workspace_path.lock().unwrap();
+    *path_guard = Some(path.to_path_buf());
+
+    let app_data: PathBuf = app.path().app_data_dir().map_err(|_| {
+        AppError::IoError("No se pudo encontrar el directorio de datos de la app".into())
+    })?;
+
+    // 2. Construir MyFinApp/workspaces/NombreDelWorkspace/
+    let app_data_base_path = app_data.join("workspaces").join(workspace_name.clone());
+
+    // 2. Guardar la ruta del appdata workspace en el estado
+    let mut app_data_path_guard = state.workspace_app_data_dir.lock().unwrap();
+    *app_data_path_guard = Some(app_data_base_path);
+
     Ok(format!("Workspace '{}' abierto e indexado", workspace_name))
 }
 
 #[tauri::command]
-pub async fn get_workspace_context(app: tauri::AppHandle) -> Result<WorkspaceContext, AppError> {
+pub async fn get_workspace_context(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<WorkspaceContext, AppError> {
     // 1. Leer la última sesión para saber qué carpeta abrir
     let app_data = app.path().app_data_dir().unwrap();
     let session_path = app_data.join("last_session.json");
-    
+
     // Aquí leerías el archivo (usando tus helpers)
     let session: LastSessionCacheConfig = load_json(&session_path)?;
-    
+
     // 2. Leer el app.json del workspace para la moneda y configuración
     let config_path = std::path::Path::new(&session.last_workspace_path)
         .join(".finance")
         .join("app.json");
     let config: AppConfig = load_json(&config_path)?;
+
+    let app_data_base_path = app_data
+        .join("workspaces")
+        .join(session.last_workspace_name.clone());
+    let app_data_sql_path = app_data_base_path.join("cache").join("cache.sqlite");
+
+    let mut conn = Connection::open(&app_data_sql_path)
+        .map_err(|e| AppError::IoError(format!("Error al abrir DB: {}", e)))?;
+
+    // 1. Guardar la conexión DB en el estado
+    let mut db_guard = state.db.lock().unwrap();
+    *db_guard = Some(conn);
+
+    // 2. Guardar la ruta del workspace en el estado
+    let mut path_guard = state.workspace_path.lock().unwrap();
+    *path_guard = Some(Path::new(&session.last_workspace_path).to_path_buf());
+
+    // 2. Guardar la ruta del appdata workspace en el estado
+    let mut app_data_path_guard = state.workspace_app_data_dir.lock().unwrap();
+    *app_data_path_guard = Some(app_data_base_path);
 
     Ok(WorkspaceContext {
         name: session.last_workspace_name,

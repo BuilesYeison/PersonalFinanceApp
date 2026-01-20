@@ -5,9 +5,13 @@ mod fs;
 mod helpers;
 mod services;
 
-struct AppState {
-    // Usamos un Mutex porque la DB se comparte entre hilos
-    db: std::sync::Mutex<Option<rusqlite::Connection>>,
+pub struct AppState {
+    // Conexión a la base de datos
+    pub db: std::sync::Mutex<Option<rusqlite::Connection>>,
+    // Ruta absoluta al workspace actual
+    pub workspace_path: std::sync::Mutex<Option<std::path::PathBuf>>,
+    // app_data_dir
+    pub workspace_app_data_dir: std::sync::Mutex<Option<std::path::PathBuf>>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -15,6 +19,8 @@ pub fn run() {
     tauri::Builder::default()
         .manage(AppState {
             db: std::sync::Mutex::new(None),
+            workspace_path: std::sync::Mutex::new(None),
+            workspace_app_data_dir: std::sync::Mutex::new(None),
         })
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
@@ -24,6 +30,7 @@ pub fn run() {
             commands::workspace::open_workspace,
             commands::workspace::get_workspace_context,
             commands::home::get_overall_stats,
+            commands::home::get_accounts,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
