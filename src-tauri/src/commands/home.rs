@@ -1,8 +1,11 @@
 use tauri::App;
 
 use crate::dto::account_info_dto::AccountInfoDto;
+use crate::dto::pagination_dto::Pagination;
+use crate::dto::record_dto::RecordDto;
 use crate::fs::account_file_management::{add_account_to_list, remove_account_from_list};
 use crate::services::accounts::{create_account_in_database, delete_account_if_no_records};
+use crate::services::records::get_records;
 use crate::services::{accounts, stats};
 use crate::AppState;
 use crate::{domain::error::AppError, services::stats::DashboardStats};
@@ -107,5 +110,25 @@ pub async fn delete_account(
         })?;
     }
 
+    Ok(result)
+}
+
+#[tauri::command]
+pub async fn get_paginated_records(
+    state: tauri::State<'_, AppState>,
+    page: i16,
+    size: i16,
+) -> Result<Pagination<RecordDto>, AppError> {
+    // 1. Bloqueamos el Mutex para obtener el Guard
+    let mut conn_guard = state.db.lock().unwrap();
+
+    // 2. Usamos .as_mut() para obtener una referencia mutable a la conexión
+    // El error principal en tu código era intentar desestructurar con &mut conn directamente
+    let conn = conn_guard.as_mut().ok_or_else(|| {
+        AppError::DatabaseError("No hay una conexión a la base de datos activa".into())
+    })?;
+
+    let result: Pagination<RecordDto> = get_records(conn, page, size)
+        .map_err(|e| AppError::DatabaseError(format!("Error obteniendo registros: {}", e)))?;
     Ok(result)
 }

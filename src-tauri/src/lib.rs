@@ -33,6 +33,7 @@ pub fn run() {
             commands::home::get_accounts,
             commands::home::create_account,
             commands::home::delete_account,
+            commands::home::get_paginated_records,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -3,15 +3,75 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
   import { toaster } from "../../../lib/toaster";
-  import { AppErrors } from "../../../domain/enums/errors.enum";
   import type { DashboardOverallStatsDto } from "../../../domain/dto/dashboard_overall_stats.dto";
-  import { onMount } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import { useCurrencyFormatter } from "$lib/utils/formatter.svelte";
   import { XIcon, TrashIcon, SquarePenIcon } from "lucide-svelte";
   import { Dialog, Portal } from "@skeletonlabs/skeleton-svelte";
   import type { AccountInfoDto } from "../../../domain/dto/account_info.dto";
   import { workspace } from "$lib/state/workspace.svelte";
   import { handleCommandError } from "$lib/utils/error.handler";
+  import {
+    Chart,
+    DoughnutController,
+    ArcElement,
+    Tooltip,
+    Legend,
+  } from "chart.js";
+  import type { RecordDto } from "../../../domain/dto/record.dto";
+  import type { PaginationDto } from "../../../domain/dto/pagination.dto";
+
+  Chart.register(DoughnutController, ArcElement, Tooltip, Legend);
+
+  let canvas: HTMLCanvasElement;
+  let chart: Chart | null = null;
+
+  let labels: string[] = ["Red", "Blue", "Yellow"];
+  let values: number[] = [300, 50, 100];
+
+  function renderChart() {
+    chart?.destroy();
+
+    chart = new Chart(canvas, {
+      type: "doughnut",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "My First Dataset",
+            data: values,
+            backgroundColor: [
+              "rgb(255, 99, 132)",
+              "rgb(54, 162, 235)",
+              "rgb(255, 205, 86)",
+            ],
+            hoverOffset: 4,
+          },
+        ],
+      },
+      options: {
+        animation: false,
+        responsive: true,
+        plugins: {
+          legend: {
+            position: "bottom",
+          },
+        },
+      },
+    });
+  }
+
+  onMount(renderChart);
+
+  $effect(() => {
+    if (labels.length && values.length) {
+      renderChart();
+    }
+  });
+
+  onDestroy(() => {
+    chart?.destroy();
+  });
 
   const formatter = useCurrencyFormatter();
 
@@ -22,6 +82,13 @@
   });
 
   let accounts: AccountInfoDto[] = $state([]);
+  let lastRecords : PaginationDto<RecordDto> = $state({
+    items:[],
+    total_items:0,
+    total_pages:0,
+    current_page:0, 
+    size:0,   
+  })
 
   let isDialogOpen = $state(false);
   let newAccount: AccountInfoDto = $state({
@@ -37,7 +104,20 @@
   onMount(async () => {
     await getDashboardOverallStats();
     await getAccounts();
+    await getRecords();
   });
+
+  async function getRecords(): Promise<void> {
+    try {
+      const result: PaginationDto<RecordDto> = await invoke(
+        "get_paginated_records",
+        { page: 1, size: 30 }
+      );
+      lastRecords = result
+    } catch (error: any) {
+      handleCommandError(error);
+    }
+  }
 
   async function getAccounts(): Promise<void> {
     try {
@@ -48,7 +128,7 @@
       }
       accounts = result;
     } catch (error: any) {
-      handleCommandError(error)
+      handleCommandError(error);
     }
   }
 
@@ -63,8 +143,8 @@
         throw Error("Couldn't get overall stats");
       }
       dashboardOverallStats = result;
-    } catch (error: any) {    
-      handleCommandError(error)
+    } catch (error: any) {
+      handleCommandError(error);
     }
   }
 
@@ -90,7 +170,7 @@
         description: "Cuenta creada exitosamente",
       });
     } catch (error: any) {
-      handleCommandError(error)
+      handleCommandError(error);
     }
   }
 
@@ -111,32 +191,26 @@
         });
       }
     } catch (error: any) {
-      handleCommandError(error)
+      handleCommandError(error);
     }
   }
 </script>
 
 <main class="w-full h-auto">
   <section id="summary-cards-section" class="grid grid-cols-4 gap-4">
-    <div
-      class="card w-fit max-w-md preset-filled-surface-100-900 p-4 text-center"
-    >
+    <div class="card w-full max-w-md preset-filled-surface-100-900 p-4">
       <h3>Balance:</h3>
       <p class="font-semibold w-max">
         {formatter.format(dashboardOverallStats.total_balance)}
       </p>
     </div>
-    <div
-      class="card w-fit max-w-md preset-filled-surface-100-900 p-4 text-center"
-    >
+    <div class="card w-full max-w-md preset-filled-surface-100-900 p-4">
       <h3>Ingresos:</h3>
       <p class="font-semibold w-max">
         {formatter.format(dashboardOverallStats.total_income)}
       </p>
     </div>
-    <div
-      class="card w-fit max-w-md preset-filled-surface-100-900 p-4 text-center"
-    >
+    <div class="card w-full max-w-md preset-filled-surface-100-900 p-4">
       <h3>Gastos:</h3>
       <p class="font-semibold w-max">
         {formatter.format(dashboardOverallStats.total_expense)}
@@ -318,6 +392,44 @@
       </Dialog>
     </div>
   </section>
+  <div class="details-container mt-2 grid grid-cols-2 gap-4 w-full h-full">
+    <section class="expenses-chart-section w-full">
+      <h4>Estructura de gastos:</h4>
+      <div class="border-1 border-dashed flex flex-col justify-center h-full">
+        <p>
+          Total gastos ultimos 30 días: <br />{formatter.format(
+            dashboardOverallStats.total_expense
+          )}
+        </p>
+        <div class="canvas w-70 h-auto self-center">
+          <canvas bind:this={canvas}></canvas>
+        </div>
+      </div>
+    </section>
+    <section class="records-section">
+      <h4>Registros:</h4>
+      <div
+        class="border-1 border-dashed flex flex-col items-center h-full relative overflow-hidden"
+      >
+      {#each lastRecords.items as record}
+      <div
+          class="card rounded-xl w-full max-w-md preset-filled-surface-100-900 py-2 px-7 m-2 relative"
+        >
+          <p>{record.description}</p>
+          <p class="text-xs">{record.account?.name}</p>
+          <p class="font-semibold absolute top-4 right-5">
+            - {formatter.format(record.amount)}
+          </p>
+        </div>
+      {/each}
+        
+        <button
+          class="btn preset-outlined-surface-500 absolute bottom-2 right-2"
+          >+ ver más...</button
+        >
+      </div>
+    </section>
+  </div>
 </main>
 
 <style lang="postcss">
