@@ -1,10 +1,8 @@
-use tauri::App;
-
 use crate::dto::account_info_dto::AccountInfoDto;
 use crate::dto::pagination_dto::Pagination;
 use crate::dto::record_dto::RecordDto;
-use crate::fs::account_file_management::{add_account_to_list, remove_account_from_list};
-use crate::services::accounts::{create_account_in_database, delete_account_if_no_records};
+use crate::fs::account_file_management::{add_account_to_list, remove_account_from_list, update_account_in_json};
+use crate::services::accounts::{create_account_in_database, delete_account_if_no_records, update_account_in_database};
 use crate::services::records::get_records;
 use crate::services::{accounts, stats};
 use crate::AppState;
@@ -76,8 +74,33 @@ pub async fn create_account(
     create_account_in_database(conn, new_account, &account_id)
         .map_err(|e| AppError::DatabaseError(format!("Error creando cuenta en DB: {}", e)))?;
 
-    Ok("Cuenta creada exitosamente".into())
+    Ok(account_id.into())
 }
+
+#[tauri::command]
+pub async fn update_account(
+    state: tauri::State<'_, AppState>,
+    account: AccountInfoDto,
+) -> Result<(), AppError> {
+    println!("Received account to update: {:?}", account);
+    let mut conn_guard = state.db.lock().unwrap();
+    let conn = conn_guard.as_mut().ok_or_else(|| {
+        AppError::DatabaseError("No hay una conexión a la base de datos activa".into())
+    })?;
+
+    let path_guard = state.workspace_path.lock().unwrap();
+    let workspace_path = path_guard.as_ref().ok_or(AppError::IoError(
+        "No hay un workspace activo en el estado".into(),
+    ))?;
+
+    let accounts_path = workspace_path.join(".finance").join("accounts.json");
+
+    update_account_in_json(accounts_path, &account)?;
+    update_account_in_database(conn, &account)?;
+
+    Ok(())
+}
+
 
 #[tauri::command]
 pub async fn delete_account(

@@ -2,5 +2,6 @@ export enum AppErrors {
   WorkspaceExists = "WorkspaceExists",
   IoError = "IoError",
   ConfigError = "ConfigError",
-  DatabaseError = "DatabaseError"
+  DatabaseError = "DatabaseError",
+  NotFound = "NotFound",
 }

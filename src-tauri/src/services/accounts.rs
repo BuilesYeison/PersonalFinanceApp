@@ -84,26 +84,73 @@ pub fn create_account_in_database(
     Ok(())
 }
 
+pub fn update_account_in_database(
+    conn: &mut Connection,
+    account: &AccountInfoDto,
+) -> Result<(), AppError> {
+    let account_type = account
+        .account_type
+        .clone()
+        .unwrap_or_else(|| "cash".to_string());
+    let currency = account
+        .currency
+        .clone()
+        .unwrap_or_else(|| "USD".to_string());
+    let initial_balance = account.initial_balance.unwrap_or(0.0);
+
+    conn.execute(
+        "UPDATE accounts 
+         SET name = ?1,
+             type = ?2,
+             currency = ?3,
+             initial_balance = ?4
+         WHERE id = ?5",
+        (
+            &account.name,
+            &account_type,
+            &currency,
+            initial_balance,
+            account.id.as_str(),
+        ),
+    )
+    .map_err(|e| AppError::DatabaseError(format!("Error actualizando cuenta: {e}")))?;
+
+    Ok(())
+}
+
 pub fn delete_account_if_no_records(
     conn: &mut Connection,
     account_id: &str,
 ) -> Result<bool, AppError> {
-    let count: i64 = conn
+    println!("Deleting account: {}", account_id);
+
+    let tx = conn
+        .transaction()
+        .map_err(|e| AppError::DatabaseError(e.to_string()))?;
+
+    let count: i64 = tx
         .query_row(
             "SELECT COUNT(*) FROM records WHERE account_id = ?1",
             [account_id],
             |row| row.get(0),
         )
-        .map_err(|e| {
-            AppError::DatabaseError(format!("Error verificando registros de la cuenta: {e}"))
-        })?;
+        .map_err(|e| AppError::DatabaseError(e.to_string()))?;
 
     if count > 0 {
         return Ok(false);
     }
 
-    conn.execute("DELETE FROM accounts WHERE id = ?1", [account_id])
-        .map_err(|e| AppError::DatabaseError(format!("Error eliminando la cuenta: {e}")))?;
+    let affected = tx
+        .execute("DELETE FROM accounts WHERE id = ?1", [account_id])
+        .map_err(|e| AppError::DatabaseError(e.to_string()))?;
+    println!("Rows affected: {}", affected);
+
+    if affected == 0 {
+        return Ok(false);
+    }
+
+    tx.commit()
+        .map_err(|e| AppError::DatabaseError(e.to_string()))?;
 
     Ok(true)
 }

@@ -10,6 +10,9 @@ pub enum AppError {
     #[error("Error de sistema de archivos: {0}")]
     IoError(String),
 
+    #[error("No se ha encontrado el recurso: {0}")]
+    NotFound(String),
+
     #[error("No se pudo crear el archivo de configuración: {0}")]
     ConfigError(String),
 

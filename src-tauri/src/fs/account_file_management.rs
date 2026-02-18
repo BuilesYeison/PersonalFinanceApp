@@ -36,6 +36,48 @@ pub fn add_account_to_list(file_path: PathBuf, new_account: &AccountInfoDto, acc
     Ok(())
 }
 
+pub fn update_account_in_json(
+    file_path: PathBuf,
+    updated_account: &AccountInfoDto,
+) -> Result<(), AppError> {
+
+    if !file_path.exists() {
+        return Err(AppError::IoError("Archivo accounts.json no existe".into()));
+    }
+
+    let mut accounts_config: AccountsConfig = load_json(&file_path)?;
+
+    let account = accounts_config
+        .accounts
+        .iter_mut()
+        .find(|a| a.id == updated_account.id)
+        .ok_or_else(|| AppError::NotFound(format!("Cuenta {} no encontrada", updated_account.id)))?;
+
+    // Mutamos solo campos editables
+    account.name = updated_account.name.clone();
+    
+    if let Some(account_type) = &updated_account.account_type {
+        account.r#type = account_type.clone();
+    }
+
+    if let Some(currency) = &updated_account.currency {
+        account.currency = currency.clone();
+    }
+
+    if let Some(initial_balance) = updated_account.initial_balance {
+        account.initial_balance = initial_balance;
+    }
+
+    if let Some(credit_limit) = updated_account.credit_limit.clone() {
+        account.credit_limit = Some(credit_limit);
+    }
+
+    save_json(file_path, &accounts_config)?;
+
+    Ok(())
+}
+
+
 
 pub fn remove_account_from_list(file_path: PathBuf, account_id_to_remove: &str) -> Result<(), AppError> {
     // 1. Cargar la lista existente del archivo JSON.
