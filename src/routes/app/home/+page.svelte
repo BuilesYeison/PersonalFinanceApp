@@ -122,48 +122,50 @@
   }
 </script>
 
-<main class="w-full h-auto">
-  <SummaryCards {dashboardOverallStats}></SummaryCards>
-  <AccountsCardsManagement
-    accountsHaveChanged={() => getDashboardOverallStats()}
-  ></AccountsCardsManagement>
-  <div class="details-container mt-2 grid grid-cols-2 gap-4 w-full h-full">
-    <section class="expenses-chart-section w-full">
-      <h4>Estructura de gastos:</h4>
-      <div class="border-1 border-dashed flex flex-col justify-center h-full">
-        <p>
-          Total gastos ultimos 30 días: <br />{formatter.format(
-            dashboardOverallStats.total_expense,
-          )}
-        </p>
-        <div class="canvas w-70 h-auto self-center">
-          <canvas bind:this={canvas}></canvas>
-        </div>
-      </div>
-    </section>
-    <section class="records-section">
-      <h4>Registros:</h4>
-      <div
-        class="border-1 border-dashed flex flex-col items-center h-full relative overflow-hidden"
-      >
-        {#each lastRecords.items as record}
-          <div
-            class="card rounded-xl w-full max-w-md preset-filled-surface-100-900 py-2 px-7 m-2 relative"
-          >
-            <p>{record.description}</p>
-            <p class="text-xs">{record.account?.name}</p>
-            <p class="font-semibold absolute top-4 right-5">
-              - {formatter.format(record.amount)}
-            </p>
+<main class="w-full min-h-screen flex justify-center items-center px-4 py-2">
+  <div class="w-full max-w-7xl">
+    <SummaryCards {dashboardOverallStats}></SummaryCards>
+    <AccountsCardsManagement
+      accountsHaveChanged={() => getDashboardOverallStats()}
+    ></AccountsCardsManagement>
+    <div class="details-container mt-2 grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+      <section class="expenses-chart-section w-full">
+        <h4>Estructura de gastos:</h4>
+        <div class="border-1 border-dashed flex flex-col justify-center h-full p-4">
+          <p class="text-center">
+            Total gastos ultimos 30 días: <br />{formatter.format(
+              dashboardOverallStats.total_expense,
+            )}
+          </p>
+          <div class="canvas w-full max-w-xs h-auto self-center mt-4">
+            <canvas bind:this={canvas}></canvas>
           </div>
-        {/each}
-
-        <button
-          class="btn preset-outlined-surface-500 absolute bottom-2 right-2"
-          >+ ver más...</button
+        </div>
+      </section>
+      <section class="records-section">
+        <h4>Registros:</h4>
+        <div
+          class="border-1 border-dashed flex flex-col items-center h-full relative overflow-hidden p-2"
         >
-      </div>
-    </section>
+          {#each lastRecords.items as record}
+            <div
+              class="card rounded-xl w-full max-w-md preset-filled-surface-100-900 py-2 px-7 m-2 relative"
+            >
+              <p>{record.description}</p>
+              <p class="text-xs">{record.account?.name}</p>
+              <p class="font-semibold absolute top-4 right-5">
+                - {formatter.format(record.amount)}
+              </p>
+            </div>
+          {/each}
+
+          <button
+            class="btn preset-outlined-surface-500 absolute bottom-2 right-2"
+            >+ ver más...</button
+          >
+        </div>
+      </section>
+    </div>
   </div>
 </main>
 

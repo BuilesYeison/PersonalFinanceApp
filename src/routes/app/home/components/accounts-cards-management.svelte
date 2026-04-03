@@ -12,6 +12,7 @@
   let accounts: AccountInfoDto[] = $state([]);
   const formatter = useCurrencyFormatter();
   let isDialogOpen = $state(false);
+  let editingAccount: AccountInfoDto | null = $state(null);
   let newAccount: AccountInfoDto = $state({
     id: "",
     name: "",
@@ -31,11 +32,12 @@
   async function getAccounts(): Promise<void> {
     try {
       const result: AccountInfoDto[] = await invoke("get_accounts", {});
-
+      console.log("cuentas",result)
       if (!result) {
         throw Error("Couldn't get accounts");
       }
       accounts = result;
+      console.log("accountsss",accounts)
     } catch (error: any) {
       handleCommandError(error);
     }
@@ -69,12 +71,18 @@
     }
   }
 
-  async function handleEditAccount(account: AccountInfoDto) {
+  function openEditDialog(account: AccountInfoDto) {
+    editingAccount = { ...account };
+  }
+
+  async function handleEditAccount() {
+    if (!editingAccount) return;
     try {
-      account.balance = account.initial_balance ?? 0;
-      await invoke("update_account", { account });
-      accounts = accounts.map((a) => (a.id === account.id ? account : a));
+      editingAccount.balance = editingAccount.initial_balance ?? 0;
+      await invoke("update_account", { account: editingAccount });
+      accounts = accounts.map((a) => (a.id === editingAccount!.id ? editingAccount! : a));
       accountsHaveChanged();
+      editingAccount = null;
       toaster.success({
         title: "Exito",
         description: "Cuenta editada exitosamente",
@@ -118,12 +126,12 @@
 
 <section id="accounts-section" class="mt-2">
   <h4 class="">Cuentas:</h4>
-  <div class="border-1 border-dashed w-full grid grid-cols-4 gap-3 p-2">
+  <div class="border-1 border-dashed w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 p-2 items-stretch">
     {#each accounts as account (account.id)}
       {@const id = account.id}
-      <div class="card p-4 preset-filled-success-500 relative group">
-        <h5>{account.name}</h5>
-        <h5 class="font-semibold w-max">
+      <div class="card p-4 preset-filled-success-500 relative group min-w-0 h-full flex flex-col">
+        <h5 class="break-words">{account.name}</h5>
+        <h5 class="font-semibold break-all">
           {formatter.format(account.balance)}
         </h5>
         <Dialog>
@@ -169,6 +177,7 @@
         <Dialog>
           <Dialog.Trigger
             class="btn absolute top-0 right-7 opacity-0 group-hover:opacity-100 transition-opacity"
+            onclick={() => openEditDialog(account)}
             ><SquarePenIcon size={17} /></Dialog.Trigger
           >
           <Portal>
@@ -187,6 +196,7 @@
                     <XIcon class="size-4" />
                   </Dialog.CloseTrigger>
                 </header>
+                {#if editingAccount}
                 <div class="flex flex-col gap-4">
                   <label class="label">
                     <span>Nombre de la cuenta</span>
@@ -194,13 +204,13 @@
                       class="input"
                       type="text"
                       placeholder="Ej: Billetera"
-                      bind:value={account.name}
+                      bind:value={editingAccount.name}
                     />
                   </label>
 
                   <label class="label">
                     <span>Tipo de cuenta</span>
-                    <select class="select" bind:value={account.account_type}>
+                    <select class="select" bind:value={editingAccount.account_type}>
                       <option value="cash">Efectivo</option>
                       <option value="debit">Débito</option>
                       <option value="credit">Crédito</option>
@@ -213,28 +223,29 @@
                       class="input"
                       type="number"
                       placeholder="0.00"
-                      bind:value={account.initial_balance}
+                      bind:value={editingAccount.initial_balance}
                     />
                   </label>
-                  {#if account.account_type === "credit"}
+                  {#if editingAccount.account_type === "credit"}
                     <label class="label">
                       <span>Límite de crédito</span>
                       <input
                         class="input"
                         type="number"
                         placeholder="0.00"
-                        bind:value={account.credit_limit}
+                        bind:value={editingAccount.credit_limit}
                       />
                     </label>
                   {/if}
                 </div>
+                {/if}
                 <footer class="flex justify-end gap-2">
                   <Dialog.CloseTrigger class="btn preset-tonal"
                     >Cancelar</Dialog.CloseTrigger
                   >
                   <Dialog.CloseTrigger
                     ><button
-                      onclick={() => handleEditAccount(account)}
+                      onclick={handleEditAccount}
                       type="button"
                       class="btn preset-filled">Guardar</button
                     ></Dialog.CloseTrigger
