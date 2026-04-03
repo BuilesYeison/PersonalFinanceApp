@@ -1,8 +1,12 @@
 use crate::dto::account_info_dto::AccountInfoDto;
 use crate::dto::pagination_dto::Pagination;
 use crate::dto::record_dto::RecordDto;
-use crate::fs::account_file_management::{add_account_to_list, remove_account_from_list, update_account_in_json};
-use crate::services::accounts::{create_account_in_database, delete_account_if_no_records, update_account_in_database};
+use crate::fs::account_file_management::{
+    add_account_to_list, remove_account_from_list, update_account_in_json,
+};
+use crate::services::accounts::{
+    create_account_in_database, delete_account_if_no_records, update_account_in_database,
+};
 use crate::services::records::get_records;
 use crate::services::{accounts, stats};
 use crate::AppState;
@@ -94,13 +98,13 @@ pub async fn update_account(
     ))?;
 
     let accounts_path = workspace_path.join(".finance").join("accounts.json");
-
+    println!("to json");
     update_account_in_json(accounts_path, &account)?;
+    println!("to database");
     update_account_in_database(conn, &account)?;
-
+    println!("Ok");
     Ok(())
 }
-
 
 #[tauri::command]
 pub async fn delete_account(

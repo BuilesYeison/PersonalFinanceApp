@@ -71,22 +71,16 @@
 
   async function handleEditAccount(account: AccountInfoDto) {
     try {
-      const result = await invoke("update_account", { account });
-      if (result) {
-        accounts = accounts.map((a) => (a.id === account.id ? account : a));
-        accountsHaveChanged();
-        toaster.success({
-          title: "Exito",
-          description: "Cuenta editada exitosamente",
-        });
-      } else {
-        toaster.error({
-          title: "Error",
-          description:
-            "No se pudo editar la cuenta. Intenta de nuevo más tarde.",
-        });
-      }
+      account.balance = account.initial_balance ?? 0;
+      await invoke("update_account", { account });
+      accounts = accounts.map((a) => (a.id === account.id ? account : a));
+      accountsHaveChanged();
+      toaster.success({
+        title: "Exito",
+        description: "Cuenta editada exitosamente",
+      });
     } catch (error: any) {
+      console.log(error);
       handleCommandError(error);
     }
   }

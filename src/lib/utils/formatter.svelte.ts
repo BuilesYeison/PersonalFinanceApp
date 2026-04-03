@@ -6,7 +6,7 @@ export function useCurrencyFormatter(locale?: string) {
   const formatter = $derived(
     new Intl.NumberFormat(resolvedLocale, {
       style: "currency",
-      currency: workspace.currency,
+      currency: workspace.currency || 'USD',
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })
