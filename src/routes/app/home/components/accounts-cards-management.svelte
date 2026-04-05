@@ -32,12 +32,11 @@
   async function getAccounts(): Promise<void> {
     try {
       const result: AccountInfoDto[] = await invoke("get_accounts", {});
-      console.log("cuentas",result)
       if (!result) {
         throw Error("Couldn't get accounts");
       }
       accounts = result;
-      console.log("accountsss",accounts)
+      console.log("results",accounts)
     } catch (error: any) {
       handleCommandError(error);
     }
@@ -72,6 +71,7 @@
   }
 
   function openEditDialog(account: AccountInfoDto) {
+    console.log(account)
     editingAccount = { ...account };
   }
 
@@ -88,7 +88,6 @@
         description: "Cuenta editada exitosamente",
       });
     } catch (error: any) {
-      console.log(error);
       handleCommandError(error);
     }
   }

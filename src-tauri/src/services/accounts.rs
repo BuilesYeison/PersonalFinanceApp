@@ -11,6 +11,8 @@ pub fn get_accounts_with_balance(conn: &mut Connection) -> Result<Vec<AccountInf
             SELECT 
                 a.id,
                 a.name,
+                a.type,
+                a.currency,
                 a.initial_balance,
                 SUM(
                     CASE
@@ -21,7 +23,7 @@ pub fn get_accounts_with_balance(conn: &mut Connection) -> Result<Vec<AccountInf
                 ) as balance
             FROM accounts a
             LEFT JOIN records r ON r.account_id = a.id
-            GROUP BY a.id, a.name, a.initial_balance
+            GROUP BY a.id, a.name, a.type, a.currency, a.initial_balance
             "#,
         )
         .map_err(|e| {
@@ -30,16 +32,16 @@ pub fn get_accounts_with_balance(conn: &mut Connection) -> Result<Vec<AccountInf
 
     let rows = stmt
         .query_map([], |row| {
-            let initial_balance: f64 = row.get(2)?;
-            let movement_sum: Option<f64> = row.get(3)?;
+            let initial_balance: f64 = row.get(4)?;
+            let movement_sum: Option<f64> = row.get(5)?;
 
             Ok(AccountInfoDto {
                 id: row.get(0)?,
                 name: row.get(1)?,
                 balance: initial_balance + movement_sum.unwrap_or(0.0),
-                account_type: None,
-                currency: None,
-                initial_balance: None,
+                account_type: row.get(2)?,
+                currency: row.get(3)?,
+                initial_balance: row.get(4)?,
                 credit_limit: None,
             })
         })

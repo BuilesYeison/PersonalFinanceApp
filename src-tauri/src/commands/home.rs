@@ -98,11 +98,8 @@ pub async fn update_account(
     ))?;
 
     let accounts_path = workspace_path.join(".finance").join("accounts.json");
-    println!("to json");
     update_account_in_json(accounts_path, &account)?;
-    println!("to database");
     update_account_in_database(conn, &account)?;
-    println!("Ok");
     Ok(())
 }
 
