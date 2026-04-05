@@ -29,8 +29,8 @@ pub fn index_full_workspace(workspace_path: &Path, conn: &mut Connection) -> Res
 
     for acc in acc_data.accounts {
         tx.execute(
-            "INSERT OR REPLACE INTO accounts (id, name, type, currency, initial_balance, is_active, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-            params![acc.id, acc.name, acc.r#type, acc.currency, acc.initial_balance, acc.is_active, acc.created_at],
+            "INSERT OR REPLACE INTO accounts (id, name, type, currency, initial_balance, credit_limit, is_active, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            params![acc.id, acc.name, acc.r#type, acc.currency, acc.initial_balance, acc.credit_limit, acc.is_active, acc.created_at],
         ).map_err(|e| AppError::IoError(e.to_string()))?;
     }
 

@@ -20,7 +20,8 @@ pub fn get_accounts_with_balance(conn: &mut Connection) -> Result<Vec<AccountInf
                         WHEN r.type = 'expense' THEN -r.amount
                         ELSE 0
                     END
-                ) as balance
+                ) as balance,
+                 a.credit_limit
             FROM accounts a
             LEFT JOIN records r ON r.account_id = a.id
             GROUP BY a.id, a.name, a.type, a.currency, a.initial_balance
@@ -42,7 +43,7 @@ pub fn get_accounts_with_balance(conn: &mut Connection) -> Result<Vec<AccountInf
                 account_type: row.get(2)?,
                 currency: row.get(3)?,
                 initial_balance: row.get(4)?,
-                credit_limit: None,
+                credit_limit: row.get(6)?,
             })
         })
         .map_err(|e| {
@@ -68,15 +69,17 @@ pub fn create_account_in_database(
     let account_type = account.account_type.unwrap_or_else(|| "cash".to_string());
     let currency = account.currency.unwrap_or_else(|| "USD".to_string());
     let initial_balance = account.initial_balance.unwrap_or(0.0);
+    let credit_limit = account.credit_limit;
 
     conn.execute(
-        "INSERT INTO accounts (id, name, type, currency, initial_balance, is_active, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        "INSERT INTO accounts (id, name, type, currency, initial_balance, credit_limit, is_active, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
         (
             &account_id,
             &account.name,
             &account_type,
             &currency,
             initial_balance,
+            credit_limit,
             1, // is_active
             created_at,
         ),
@@ -99,19 +102,22 @@ pub fn update_account_in_database(
         .clone()
         .unwrap_or_else(|| "USD".to_string());
     let initial_balance = account.initial_balance.unwrap_or(0.0);
+    let credit_limit = account.credit_limit;
 
     conn.execute(
         "UPDATE accounts 
          SET name = ?1,
              type = ?2,
              currency = ?3,
-             initial_balance = ?4
-         WHERE id = ?5",
+             initial_balance = ?4,
+             credit_limit = ?5
+         WHERE id = ?6",
         (
             &account.name,
             &account_type,
             &currency,
             initial_balance,
+            credit_limit,
             account.id.as_str(),
         ),
     )

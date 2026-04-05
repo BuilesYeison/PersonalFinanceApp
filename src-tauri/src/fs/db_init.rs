@@ -41,12 +41,27 @@ pub fn init_sqlite(conn: &mut Connection) -> Result<()> {
             type TEXT NOT NULL,
             currency TEXT NOT NULL,
             initial_balance REAL NOT NULL,
+            credit_limit REAL,
             is_active INTEGER NOT NULL,
             created_at INTEGER NOT NULL
             );
         ",
         [],
     )?;
+
+    // Add credit_limit column if it doesn't exist (for existing databases)
+    let column_exists: bool = conn
+        .query_row(
+            "SELECT COUNT(*) FROM pragma_table_info('accounts') WHERE name = 'credit_limit'",
+            [],
+            |row| row.get::<_, i32>(0),
+        )
+        .map(|count| count > 0)
+        .unwrap_or(false);
+
+    if !column_exists {
+        conn.execute("ALTER TABLE accounts ADD COLUMN credit_limit REAL;", [])?;
+    }
 
     conn.execute(
         "

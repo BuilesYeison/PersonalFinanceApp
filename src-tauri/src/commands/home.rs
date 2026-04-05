@@ -41,7 +41,7 @@ pub async fn get_accounts(
     // 2. Usamos .as_mut() para obtener una referencia mutable a la conexión
     // El error principal en tu código era intentar desestructurar con &mut conn directamente
     let conn = conn_guard.as_mut().ok_or_else(|| {
-        AppError::DatabaseError("No hay una conexión a la base de datos activa".into())
+        AppError::DatabaseError("No hay una conexión a la base de datos activa.".into())
     })?;
     let accounts = accounts::get_accounts_with_balance(conn)
         .map_err(|e| AppError::DatabaseError(e.to_string()))?;
