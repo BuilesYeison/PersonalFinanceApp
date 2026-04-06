@@ -1,13 +1,16 @@
+use crate::domain::config_models::{AccountItem, AccountsConfig};
 use crate::domain::error::AppError;
-use crate::helpers::json_helpers::{load_json, save_json};
-use std::path::PathBuf;
-use crate::domain::config_models::{AccountItem,AccountsConfig};
 use crate::dto::account_info_dto::AccountInfoDto;
 use crate::helpers::datetime_helpers::timestamp_now;
-
+use crate::helpers::json_helpers::{load_json, save_json};
+use std::path::PathBuf;
 
 // Función para agregar una cuenta a la lista
-pub fn add_account_to_list(file_path: PathBuf, new_account: &AccountInfoDto, account_id: &str) -> Result<(), AppError> {
+pub fn add_account_to_list(
+    file_path: PathBuf,
+    new_account: &AccountInfoDto,
+    account_id: &str,
+) -> Result<(), AppError> {
     // 2. Cargar la lista existente
     // Verificamos si el archivo existe primero para evitar errores de IO si es la primera vez
     let mut accounts_config: AccountsConfig = if file_path.exists() {
@@ -40,7 +43,6 @@ pub fn update_account_in_json(
     file_path: PathBuf,
     updated_account: &AccountInfoDto,
 ) -> Result<(), AppError> {
-
     if !file_path.exists() {
         return Err(AppError::IoError("Archivo accounts.json no existe".into()));
     }
@@ -51,11 +53,13 @@ pub fn update_account_in_json(
         .accounts
         .iter_mut()
         .find(|a| a.id == updated_account.id)
-        .ok_or_else(|| AppError::NotFound(format!("Cuenta {} no encontrada", updated_account.id)))?;
+        .ok_or_else(|| {
+            AppError::NotFound(format!("Cuenta {} no encontrada", updated_account.id))
+        })?;
 
     // Mutamos solo campos editables
     account.name = updated_account.name.clone();
-    
+
     if let Some(account_type) = &updated_account.account_type {
         account.r#type = account_type.clone();
     }
@@ -77,9 +81,10 @@ pub fn update_account_in_json(
     Ok(())
 }
 
-
-
-pub fn remove_account_from_list(file_path: PathBuf, account_id_to_remove: &str) -> Result<(), AppError> {
+pub fn remove_account_from_list(
+    file_path: PathBuf,
+    account_id_to_remove: &str,
+) -> Result<(), AppError> {
     // 1. Cargar la lista existente del archivo JSON.
     let mut accounts_config: AccountsConfig = if file_path.exists() {
         load_json(&file_path)?
@@ -90,7 +95,9 @@ pub fn remove_account_from_list(file_path: PathBuf, account_id_to_remove: &str) 
 
     // 2. Usar `retain` para mantener solo las cuentas cuyo ID no coincide con el que se quiere eliminar.
     // `retain` es eficiente ya que modifica el vector en el lugar sin crear uno nuevo.
-    accounts_config.accounts.retain(|account| account.id != account_id_to_remove);
+    accounts_config
+        .accounts
+        .retain(|account| account.id != account_id_to_remove);
 
     // 3. Guardar la lista (posiblemente) modificada de nuevo en el archivo.
     save_json(file_path, &accounts_config)?;

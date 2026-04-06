@@ -17,6 +17,9 @@
   import type { PaginationDto } from "../../../domain/dto/pagination.dto";
   import SummaryCards from "./components/summary-cards.svelte";
   import AccountsCardsManagement from "./components/accounts-cards-management.svelte";
+  import { Dialog, Portal } from "@skeletonlabs/skeleton-svelte";
+  import { goto } from "$app/navigation";
+  import { Plus, ArrowUpRight, ArrowDownLeft, ArrowLeftRight } from "lucide-svelte";
 
   Chart.register(DoughnutController, ArcElement, Tooltip, Legend);
 
@@ -85,6 +88,13 @@
     current_page: 0,
     size: 0,
   });
+
+  let isFabMenuOpen = $state(false);
+
+  function openNewTransaction(type: "expense" | "income" | "transfer") {
+    isFabMenuOpen = false;
+    goto(`/app/home/new-transaction?type=${type}`);
+  }
 
   onMount(async () => {
     await getDashboardOverallStats();
@@ -166,6 +176,40 @@
         </div>
       </section>
     </div>
+
+    <Dialog>
+      <Dialog.Trigger class="fixed bottom-6 right-6 btn-icon preset-filled-primary-500 shadow-xl p-4 z-50">
+        <Plus size={24} />
+      </Dialog.Trigger>
+      <Portal>
+        <Dialog.Backdrop class="fixed inset-0 z-50 bg-surface-50-950/50" />
+        <Dialog.Positioner class="fixed inset-0 z-50 flex justify-end items-end p-4">
+          <Dialog.Content class="card bg-surface-100-900 p-2 space-y-2 shadow-xl w-48">
+            <button
+              class="btn preset-tonal w-full justify-start"
+              onclick={() => openNewTransaction("expense")}
+            >
+              <ArrowDownLeft size={18} />
+              Gasto
+            </button>
+            <button
+              class="btn preset-tonal w-full justify-start"
+              onclick={() => openNewTransaction("income")}
+            >
+              <ArrowUpRight size={18} />
+              Ingreso
+            </button>
+            <button
+              class="btn preset-tonal w-full justify-start"
+              onclick={() => openNewTransaction("transfer")}
+            >
+              <ArrowLeftRight size={18} />
+              Transferencia
+            </button>
+          </Dialog.Content>
+        </Dialog.Positioner>
+      </Portal>
+    </Dialog>
   </div>
 </main>
 

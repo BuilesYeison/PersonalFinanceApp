@@ -7,7 +7,6 @@ use std::path::PathBuf;
 use tauri::AppHandle;
 use tauri::Manager; // Para acceder a app_data_dir
 
-
 /// Obtiene y crea la estructura local para un workspace específico
 pub fn prepare_local_storage(
     app: &AppHandle,
@@ -15,7 +14,7 @@ pub fn prepare_local_storage(
     workspace_name: String,
 ) -> Result<LocalPaths, AppError> {
     // 1. Obtener la ruta base de la App (ej: AppData/Roaming/MyFinApp)
-    let app_data:PathBuf = app.path().app_data_dir().map_err(|_| {
+    let app_data: PathBuf = app.path().app_data_dir().map_err(|_| {
         AppError::IoError("No se pudo encontrar el directorio de datos de la app".into())
     })?;
 

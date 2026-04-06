@@ -31,10 +31,12 @@ pub fn run() {
             commands::workspace::get_workspace_context,
             commands::home::get_overall_stats,
             commands::home::get_accounts,
+            commands::home::get_categories,
             commands::home::create_account,
             commands::home::update_account,
             commands::home::delete_account,
             commands::home::get_paginated_records,
+            commands::home::create_record,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

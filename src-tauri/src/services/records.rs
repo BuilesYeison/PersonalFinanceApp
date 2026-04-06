@@ -1,5 +1,6 @@
 use crate::domain::error::AppError;
 use crate::dto::category_dto::CategoryDto;
+use crate::dto::create_record_dto::CreateRecordDto;
 use crate::dto::pagination_dto::Pagination;
 use crate::dto::{account_info_dto::AccountInfoDto, record_dto::RecordDto};
 use rusqlite::{params, Connection};
@@ -121,4 +122,29 @@ pub fn get_records(
         size,
         total_pages,
     })
+}
+
+pub fn create_record_in_database(
+    conn: &mut Connection,
+    record: &CreateRecordDto,
+    record_id: &str,
+    file_path: &str,
+) -> Result<(), AppError> {
+    conn.execute(
+        "INSERT INTO records (id, type, timestamp, amount, account_id, to_account_id, category_id, description, file_path) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+        params![
+            record_id,
+            record.r#type,
+            record.timestamp,
+            record.amount,
+            record.account_id,
+            record.to_account_id,
+            record.category_id,
+            record.description,
+            file_path,
+        ],
+    )
+    .map_err(|e| AppError::DatabaseError(format!("Error creando registro: {}", e)))?;
+
+    Ok(())
 }

@@ -1,5 +1,4 @@
 /// Statistics calculation service
-
 use crate::domain::error::AppError;
 use rusqlite::{params, Connection, Result};
 use serde::Serialize;
@@ -21,11 +20,11 @@ pub struct CategoryPercentage {
 
 pub fn calculate_overall_stats(conn: &mut Connection) -> Result<DashboardStats, AppError> {
     // 1. Obtener la suma de todos los balances iniciales
-    let initial_balances_sum: f64 = conn.query_row(
-        "SELECT SUM(initial_balance) FROM accounts",
-        [],
-        |row| row.get(0)
-    ).unwrap_or(0.0);
+    let initial_balances_sum: f64 = conn
+        .query_row("SELECT SUM(initial_balance) FROM accounts", [], |row| {
+            row.get(0)
+        })
+        .unwrap_or(0.0);
 
     // 2. Obtener la suma de ingresos y gastos
     let mut stmt = conn
@@ -41,7 +40,7 @@ pub fn calculate_overall_stats(conn: &mut Connection) -> Result<DashboardStats, 
         .query_row([], |row| {
             let income: f64 = row.get(0).unwrap_or(0.0);
             let expense: f64 = row.get(1).unwrap_or(0.0);
-            
+
             // 3. El balance real es: Saldo Inicial + Ingresos - Gastos
             Ok(DashboardStats {
                 total_income: income,

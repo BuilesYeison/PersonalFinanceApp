@@ -1,13 +1,17 @@
 use crate::dto::account_info_dto::AccountInfoDto;
+use crate::dto::category_dto::CategoryDto;
+use crate::dto::create_record_dto::CreateRecordDto;
 use crate::dto::pagination_dto::Pagination;
 use crate::dto::record_dto::RecordDto;
 use crate::fs::account_file_management::{
     add_account_to_list, remove_account_from_list, update_account_in_json,
 };
+use crate::fs::record_file_management::create_record_file;
 use crate::services::accounts::{
     create_account_in_database, delete_account_if_no_records, update_account_in_database,
 };
-use crate::services::records::get_records;
+use crate::services::categories::get_categories as fetch_categories;
+use crate::services::records::{create_record_in_database, get_records};
 use crate::services::{accounts, stats};
 use crate::AppState;
 use crate::{domain::error::AppError, services::stats::DashboardStats};
@@ -155,4 +159,48 @@ pub async fn get_paginated_records(
     let result: Pagination<RecordDto> = get_records(conn, page, size)
         .map_err(|e| AppError::DatabaseError(format!("Error obteniendo registros: {}", e)))?;
     Ok(result)
+}
+
+#[tauri::command]
+pub async fn create_record(
+    state: tauri::State<'_, AppState>,
+    record: CreateRecordDto,
+) -> Result<String, AppError> {
+    let mut conn_guard = state.db.lock().unwrap();
+    let conn = conn_guard.as_mut().ok_or_else(|| {
+        AppError::DatabaseError("No hay una conexión a la base de datos activa".into())
+    })?;
+
+    let path_guard = state.workspace_path.lock().unwrap();
+    let workspace_path = path_guard.as_ref().ok_or(AppError::IoError(
+        "No hay un workspace activo en el estado".into(),
+    ))?;
+
+    let record_id = uuid::Uuid::new_v4().to_string();
+    let records_dir = workspace_path.join("records");
+    let record_file_path = records_dir.join(format!("{}.json", record_id));
+    let file_path_str = record_file_path.to_string_lossy().to_string();
+
+    create_record_file(workspace_path, &record, &record_id)
+        .map_err(|e| AppError::IoError(format!("Error al crear archivo de registro: {}", e)))?;
+
+    create_record_in_database(conn, &record, &record_id, &file_path_str)
+        .map_err(|e| AppError::DatabaseError(format!("Error creando registro en DB: {}", e)))?;
+
+    Ok(record_id)
+}
+
+#[tauri::command]
+pub async fn get_categories(
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<CategoryDto>, AppError> {
+    let mut conn_guard = state.db.lock().unwrap();
+    let conn = conn_guard.as_mut().ok_or_else(|| {
+        AppError::DatabaseError("No hay una conexión a la base de datos activa".into())
+    })?;
+
+    let categories = fetch_categories(conn)
+        .map_err(|e| AppError::DatabaseError(e.to_string()))?;
+
+    Ok(categories)
 }

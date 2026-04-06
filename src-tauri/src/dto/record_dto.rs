@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use super::{account_info_dto::AccountInfoDto, category_dto::CategoryDto};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RecordDto {
